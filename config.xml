@@ -1,0 +1,26 @@
+<service>
+	<serviceName>traducir</serviceName>
+	<serviceDescription>Traduce a disimiles idiomas. Permite traducir frases completas o solo palabras</serviceDescription>
+	<creatorEmail>salvi.pascual@gmail.com</creatorEmail>
+	<serviceCategory>academico</serviceCategory>
+	<serviceUsage>
+		<![CDATA[
+			Escriba un email a {APRETASTE_EMAIL}, en el asunto ponga la palabra TRADUCIR, y en l cuerpo el texto a traducir.
+
+			Por ejemplo:
+			Para: {APRETASTE_EMAIL}
+			Asunto: TRADUCIR
+			Cuerpo: What is my name?
+			
+			Recibir&aacute; un email de respuesta con el contenido traducido.
+			
+			Apretaste entender&aacute; el idioma en que el usuario escribe y lo traducir&aacute; al espa&ntilde;ol.
+			Si el idioma de entrada en espa&ntilde;ol, por defecto se traducir&aacute; a ingl&eacute;s 
+			Si quiere cambiar el idioma de salida, escriba en el asunto TRADUCIR A idioma, por ejemplo:
+
+			Para: {APRETASTE_EMAIL}
+			Asunto: TRADUCIR A frances
+			Cuerpo: What is my name?
+		]]>
+	</serviceUsage>
+</service>

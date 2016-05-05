@@ -1,0 +1,1 @@
+No nos envi&oacute; el texto a traducir.
