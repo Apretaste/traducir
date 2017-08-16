@@ -1,11 +1,22 @@
 <?php
 
+/**
+ * Apretaste Traducir Service
+ *
+ * @author kumahacker
+ * @version 2.0
+ */
+ 
+use Buzz\Browser;
+use MatthiasNoback\MicrosoftOAuth\AzureTokenProvider;
+use MatthiasNoback\MicrosoftTranslator\MicrosoftTranslator;
+
 class Traducir extends Service
 {
 
 	private $languages = null;
-	private $accessToken = null;
 	private $time = null;
+	
 	/**
 	 * Function executed when the service is called
 	 *
@@ -36,9 +47,13 @@ class Traducir extends Service
 
 			if($text == '')
 			{
-				if( ! $this->isUTF8($request->body)) $text = $this->utf8Encode($request->body);
-				$text = quoted_printable_decode($request->body);
-				if( ! $this->isUTF8($text)) $text = $this->utf8Encode($text);
+				if( ! $this->isUTF8($request->body))
+				    $text = $this->utf8Encode($request->body);
+
+				$text = quoted_printable_decode($text);
+
+				if( ! $this->isUTF8($text))
+				    $text = $this->utf8Encode($text);
 			}
 
 			// do not allow blank searches
@@ -58,8 +73,14 @@ class Traducir extends Service
 				$textoobig = true;
 			}
 
-			$langs = $this->getLanguages();
+            $browser = new Browser();
+            $azureKey = '9d07e05a9a024cd0be9d766ab610a455';
+            $accessTokenProvider = new AzureTokenProvider($browser, $azureKey);
+            $translator = new MicrosoftTranslator($browser, $accessTokenProvider);
 
+            $fromLanguage = $translator->detect($text);
+            $langs = $translator->getLanguagesForTranslate();
+var_dump($langs);
 			$toLanguage = 'es';
 
 			foreach($langs as $lang => $lname){
@@ -72,8 +93,7 @@ class Traducir extends Service
 				}
 			}
 
-			$fromLanguage = $this->detect($text);
-			$translatedStr = $this->translate($text, $fromLanguage, $toLanguage);
+			$translatedStr = $translator->translate($text, $toLanguage, $fromLanguage);
 
 			$responseContent = array(
 				"fromLanguage" => $fromLanguage,
@@ -88,234 +108,13 @@ class Traducir extends Service
 
 			return $response;
 		} catch (Exception $e){
+			echo $e->getMessage();
 			$response = new Response();
 			$response->setResponseSubject('No se pudo traducir su texto');
 			$response->createFromText('Estamos presentando problemas para traducir en estos momentos. Intente luego y contacte al soporte t&eacute;cnico.');
 			return $response;
 		}
 	}
-
-	/**
-	 * Load list of languages
-	 */
-	private function getLanguages(){
-		if (is_null($this->languages)){
-
-			$this->languages = array();
-
-			$authHeader = "Authorization: Bearer ". $this->getAccessToken();
-			$url = "http://api.microsofttranslator.com/V2/Http.svc/GetLanguagesForTranslate";
-			$strResponse = $this->curlRequest($url, $authHeader);
-			$xmlObj = simplexml_load_string($strResponse);
-			$languageCodes = array();
-			foreach($xmlObj->string as $language)
-				$languageCodes[] = $language."";
-
-			$locale = 'es';
-			$getLanguageNamesurl = "http://api.microsofttranslator.com/V2/Http.svc/GetLanguageNames?locale=$locale";
-			$requestXml = $this->createReqXML($languageCodes);
-			$curlResponse = $this->curlRequest($getLanguageNamesurl, $authHeader, $requestXml);
-			$xmlObj = simplexml_load_string($curlResponse);
-
-			$i = 0;
-
-			foreach ($xmlObj->string as $language)
-				$this->languages[$languageCodes[$i++]] = $language."";
-		}
-
-		return $this->languages;
-	}
-
-	private function getConfig(){
-		return array(
-			'primary_account_key' => 'SaUc0H0MKD3fbxuZjF305FwnyFaYHO7r5/UMCLfzbZY=',
-			'customer_id' => '641f2b6f-fe31-4162-b6cb-7aaa28d2bf5c',
-			'email_address' => 'salvi.pascual@outlook.com',
-			'account_key' => 'OWgQ9fgfXKcMLO46Jseva3yg2HOZ/aK64JExubw0xuo=',
-			'client_id' => '641f2b6f-fe31-4162-b6cb-7aaa28d2bf5c'// 'salvitranslator'
-		);
-	}
-
-	/*
-	 * Get the access token.
-	 *
-	 * @param string $grantType	Grant type.
-	 * @param string $scopeUrl	 Application Scope URL.
-	 * @param string $clientID	 Application client ID.
-	 * @param string $clientSecret Application client ID.
-	 * @param string $authUrl	  Oauth Url.
-	 *
-	 * @return string.
-	 */
-	private function getTokens($grantType, $scopeUrl, $clientID, $clientSecret, $authUrl){
-
-		$ch = curl_init();
-
-		$paramArr = array (
-			 'grant_type'	=> $grantType,
-			 'scope'		 => $scopeUrl,
-			 'client_id'	 => $clientID,
-			 'client_secret' => $clientSecret
-		);
-
-		$paramArr = http_build_query($paramArr);
-		curl_setopt($ch, CURLOPT_URL, $authUrl);
-		curl_setopt($ch, CURLOPT_POST, TRUE);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $paramArr);
-		curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-		$strResponse = curl_exec($ch);
-		$curlErrno = curl_errno($ch);
-
-		if($curlErrno){
-			$curlError = curl_error($ch);
-			throw new Exception($curlError);
-		}
-
-		curl_close($ch);
-
-		$objResponse = json_decode($strResponse);
-
-		if (isset($objResponse->error))
-			throw new Exception($objResponse->error_description);
-
-		return $objResponse->access_token;
-
-	}
-
-	 /*
-	 * Create and execute the HTTP CURL request.
-	 *
-	 * @param string $url		HTTP Url.
-	 * @param string $authHeader Authorization Header string.
-	 * @param string $postData   Data to post.
-	 *
-	 * @return string.
-	 *
-	 */
-	private function curlRequest($url, $authHeader, $postData=''){
-		$ch = curl_init();
-		curl_setopt ($ch, CURLOPT_URL, $url);
-		curl_setopt ($ch, CURLOPT_HTTPHEADER, array($authHeader,"Content-Type: text/xml"));
-		curl_setopt ($ch, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt ($ch, CURLOPT_SSL_VERIFYPEER, False);
-		if($postData) {
-			curl_setopt($ch, CURLOPT_POST, TRUE);
-			curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-		}
-		$curlResponse = curl_exec($ch);
-		$curlErrno = curl_errno($ch);
-
-		if ($curlErrno) {
-			$curlError = curl_error($ch);
-			throw new Exception($curlError);
-		}
-		curl_close($ch);
-		return $curlResponse;
-	}
-
-	/**
-	 * Translate text
-	 *
-	 * @param String inputStr
-	 * @param String fromLanguage
-	 * @param String toLanguage
-	 * @param String contentType
-	 * @param String category
-	 */
-	private function translate($inputStr, $fromLanguage = "en", $toLanguage = "es", $contentType ='text/plain', $category = 'general'){
-
-		$authHeader = "Authorization: Bearer ". $this->getAccessToken();
-		$params = "appId=&text=".urlencode($inputStr)."&to=".$toLanguage."&from=".$fromLanguage;
-		$translateUrl = "http://api.microsofttranslator.com/v2/Http.svc/Translate?$params";
-		$curlResponse = $this->curlRequest($translateUrl, $authHeader);
-		$xmlObj = simplexml_load_string($curlResponse);
-
-		foreach((array)$xmlObj[0] as $val){
-			$translatedStr = $val;
-		}
-
-		if (trim($translatedStr) !== '')
-			return $translatedStr;
-
-		throw new Exception('Microsoft API Exception');
-	}
-
-	/**
-	 * Detect language
-	 *
-	 * @param String inputStr
-	 * @return String
-	 */
-	private function detect($inputStr){
-		$authHeader   = "Authorization: Bearer ". $this->getAccessToken();
-		$detectMethodUrl = "http://api.microsofttranslator.com/V2/Http.svc/Detect?text=".urlencode($inputStr);
-		$strResponse = $this->curlRequest($detectMethodUrl, $authHeader);
-
-		$xmlObj = simplexml_load_string($strResponse);
-
-		foreach((array)$xmlObj[0] as $val){
-			$languageCode = $val;
-		}
-
-		return $languageCode;
-	}
-
-	private function getAccessToken(){
-
-		if (microtime(true) - $this->time > 60000)
-			$this->accessToken = null;
-
-		if (is_null($this->accessToken)){
-			$cfg		  = $this->getConfig();
-			$clientID	 = $cfg['client_id'];
-			$clientSecret = $cfg['primary_account_key'];
-			$authUrl	  = "https://datamarket.accesscontrol.windows.net/v2/OAuth2-13/";
-			$scopeUrl	 = "http://api.microsofttranslator.com";
-			$grantType	= "client_credentials";
-			$this->accessToken  = $this->getTokens($grantType, $scopeUrl, $clientID, $clientSecret, $authUrl);
-		}
-
-		return $this->accessToken;
-	}
-
-	/**
-	 * Return the lang name by code
-	 *
-	 * @param string LanguageCode
-	 * @return String
-	 */
-	private function getLanguageName($languageCode){
-		$locale = 'es'; // return name in spanish
-		$getLanguageNamesurl = "http://api.microsofttranslator.com/V2/Http.svc/GetLanguageNames?locale=$locale";
-		$requestXml = $this->createReqXML($languageCode);
-		$curlResponse = $this->curlRequest($getLanguageNamesurl, $authHeader, $requestXml);
-		$xmlObj = simplexml_load_string($curlResponse);
-		foreach($xmlObj->string as $language)
-		   return $language;
-	}
-
-	/*
-	 * Create Request XML Format.
-	 *
-	 * @param mixed $languageCodes  Language code(s)
-	 * @return string.
-	 */
-	private function createReqXML($languageCodes) {
-
-		if (!is_array($languageCodes))
-			$languageCodes = array($languageCodes);
-
-		$requestXml = '<ArrayOfstring xmlns="http://schemas.microsoft.com/2003/10/Serialization/Arrays" xmlns:i="http://www.w3.org/2001/XMLSchema-instance">';
-
-		foreach($languageCodes as $codes)
-			$requestXml .= "<string>$codes</string>";
-
-		$requestXml .= '</ArrayOfstring>';
-
-		return $requestXml;
-	}
-
 
 	public function fix_text($text)
 	{
