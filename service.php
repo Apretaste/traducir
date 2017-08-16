@@ -84,7 +84,6 @@ class Traducir extends Service
 			$langs = $translator->getLanguageNames($langs, 'es');
 
 			foreach($langs as $lang => $lname){
-				$lname = $translator->get
 				$lname = trim(strtolower($lname));
 				$lname = htmlentities($lname);
 				$lname = str_replace(array('acute;','&','tilde;'),'',$lname);
