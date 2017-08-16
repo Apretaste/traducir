@@ -14,7 +14,6 @@ use MatthiasNoback\MicrosoftTranslator\MicrosoftTranslator;
 class Traducir extends Service
 {
 
-	private $languages = null;
 	private $time = null;
 	
 	/**
@@ -25,7 +24,7 @@ class Traducir extends Service
 	 * */
 	public function _main(Request $request)
 	{
-		$this->time = microtime(true);
+
 		try {
 			$argument = $request->query;
 			$argument = ' ' . trim($argument) . ' ';
@@ -80,10 +79,12 @@ class Traducir extends Service
 
             $fromLanguage = $translator->detect($text);
             $langs = $translator->getLanguagesForTranslate();
-var_dump($langs);
+
 			$toLanguage = 'es';
+			$langs = $translator->getLanguageNames($langs, 'es');
 
 			foreach($langs as $lang => $lname){
+				$lname = $translator->get
 				$lname = trim(strtolower($lname));
 				$lname = htmlentities($lname);
 				$lname = str_replace(array('acute;','&','tilde;'),'',$lname);
@@ -98,7 +99,7 @@ var_dump($langs);
 			$responseContent = array(
 				"fromLanguage" => $fromLanguage,
 				"toLanguage" => $toLanguage,
-				"toLanguageCaption" => $this->languages[$toLanguage],
+				"toLanguageCaption" => $langs[$toLanguage],
 				"translatedStr" => $translatedStr
 			);
 
