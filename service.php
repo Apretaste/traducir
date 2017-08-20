@@ -41,7 +41,7 @@ class Traducir extends Service
             if ($p !== false)
             {
                 $request->body = trim(substr($argument, $p));
-                $argument = substr($argument, $p);
+                $argument = substr($argument, 0, $p);
             }
 
 			$argument = $this->reparaTildes($argument);
