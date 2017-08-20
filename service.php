@@ -26,13 +26,24 @@ class Traducir extends Service
 	{
 
 		try {
-			$argument = $request->query;
-			$argument = ' ' . trim($argument) . ' ';
-			$argument = str_ireplace(' a ', '', $argument);
-			$argument = str_ireplace(' de ', '', $argument);
-			$argument = str_ireplace(' del ', '', $argument);
-			$argument = str_ireplace(' al ', '', $argument);
-			$argument = trim($argument);
+			$argument = trim($request->query);
+
+            // do not allow blank searches
+            if(empty($argument))
+            {
+                $response = new Response();
+                $response->setResponseSubject("Que texto desea traducir?");
+                $response->createFromTemplate("home.tpl", array());
+                return $response;
+            }
+
+            $p = strpos($argument,' ');
+            if ($p !== false)
+            {
+                $request->body = trim(substr($argument, $p));
+                $argument = substr($argument, $p);
+            }
+
 			$argument = $this->reparaTildes($argument);
 			$language = trim(strtolower($argument));
 			$text = trim($this->strip_html_tags($request->body));
@@ -40,7 +51,7 @@ class Traducir extends Service
 			// Cleanning/Decoding the text...
 			if( ! $this->isUTF8($text)) $text = $this->utf8Encode($text);
 
-			$text = quoted_printable_decode($request->body);
+			$text = quoted_printable_decode($text);
 			$text = $this->cleanText($text);
 			$text = html_entity_decode($text, ENT_COMPAT | ENT_HTML401, 'ISO-8859-1');
 
@@ -53,23 +64,6 @@ class Traducir extends Service
 
 				if( ! $this->isUTF8($text))
 				    $text = $this->utf8Encode($text);
-			}
-
-			// do not allow blank searches
-			if(empty($request->query))
-			{
-				$response = new Response();
-				$response->setResponseSubject("Que texto desea traducir?");
-				$response->createFromTemplate("home.tpl", array());
-				return $response;
-			}
-
-			$textoobig = false;
-			$limit = 1000;
-
-			if(strlen($text) > $limit){
-				$text = substr($text, 0, $limit);
-				$textoobig = true;
 			}
 
             $browser = new Browser();
@@ -108,7 +102,6 @@ class Traducir extends Service
 
 			return $response;
 		} catch (Exception $e){
-			echo $e->getMessage();
 			$response = new Response();
 			$response->setResponseSubject('No se pudo traducir su texto');
 			$response->createFromText('Estamos presentando problemas para traducir en estos momentos. Intente luego y contacte al soporte t&eacute;cnico.');
