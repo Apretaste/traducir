@@ -1,21 +1,11 @@
 <?php
 
-/**
- * Apretaste Traducir Service
- *
- * @author kumahacker
- * @version 2.0
- */
- 
 use Buzz\Browser;
 use MatthiasNoback\MicrosoftOAuth\AzureTokenProvider;
 use MatthiasNoback\MicrosoftTranslator\MicrosoftTranslator;
 
 class Traducir extends Service
 {
-
-	private $time = null;
-	
 	/**
 	 * Function executed when the service is called
 	 *
@@ -24,25 +14,25 @@ class Traducir extends Service
 	 * */
 	public function _main(Request $request)
 	{
-
 		try {
 			$argument = trim($request->query);
 
-            // do not allow blank searches
-            if(empty($argument))
-            {
-                $response = new Response();
-                $response->setResponseSubject("Que texto desea traducir?");
-                $response->createFromTemplate("home.tpl", array());
-                return $response;
-            }
+			// do not allow blank searches
+			if(empty($argument))
+			{
+				$response = new Response();
+				$response->setCache();
+				$response->setResponseSubject("Que texto desea traducir?");
+				$response->createFromTemplate("home.tpl", array());
+				return $response;
+			}
 
-            $p = strpos($argument,' ');
-            if ($p !== false)
-            {
-                $request->body = trim(substr($argument, $p));
-                $argument = substr($argument, 0, $p);
-            }
+			$p = strpos($argument,' ');
+			if ($p !== false)
+			{
+				$request->body = trim(substr($argument, $p));
+				$argument = substr($argument, 0, $p);
+			}
 
 			$argument = $this->reparaTildes($argument);
 			$language = trim(strtolower($argument));
@@ -58,21 +48,21 @@ class Traducir extends Service
 			if($text == '')
 			{
 				if( ! $this->isUTF8($request->body))
-				    $text = $this->utf8Encode($request->body);
+					$text = $this->utf8Encode($request->body);
 
 				$text = quoted_printable_decode($text);
 
 				if( ! $this->isUTF8($text))
-				    $text = $this->utf8Encode($text);
+					$text = $this->utf8Encode($text);
 			}
 
-            $browser = new Browser();
-            $azureKey = '9d07e05a9a024cd0be9d766ab610a455';
-            $accessTokenProvider = new AzureTokenProvider($browser, $azureKey);
-            $translator = new MicrosoftTranslator($browser, $accessTokenProvider);
+			$browser = new Browser();
+			$azureKey = '9d07e05a9a024cd0be9d766ab610a455';
+			$accessTokenProvider = new AzureTokenProvider($browser, $azureKey);
+			$translator = new MicrosoftTranslator($browser, $accessTokenProvider);
 
-            $fromLanguage = $translator->detect($text);
-            $langs = $translator->getLanguagesForTranslate();
+			$fromLanguage = $translator->detect($text);
+			$langs = $translator->getLanguagesForTranslate();
 
 			$toLanguage = 'es';
 			$langs = $translator->getLanguageNames($langs, 'es');
@@ -97,11 +87,13 @@ class Traducir extends Service
 			);
 
 			$response = new Response();
+			$response->setCache();
 			$response->setResponseSubject("Resultado de traducir '" . substr($text, 0, 20) . "...' al " . $responseContent['toLanguageCaption']);
 			$response->createFromTemplate("basic.tpl", $responseContent);
-
 			return $response;
-		} catch (Exception $e){
+		}
+		catch (Exception $e)
+		{
 			$response = new Response();
 			$response->setResponseSubject('No se pudo traducir su texto');
 			$response->createFromText('Estamos presentando problemas para traducir en estos momentos. Intente luego y contacte al soporte t&eacute;cnico.');
@@ -109,45 +101,15 @@ class Traducir extends Service
 		}
 	}
 
-	public function fix_text($text)
-	{
-		if(! $this->isUTF8($text))
-			$text = utf8_encode($text);
-
-		$text = html_entity_decode($text, ENT_COMPAT, 'UTF-8');
-		$text = htmlentities($text);
-
-		return $text;
-	}
-
-	public function urlencode($text)
-	{
-		$text = str_replace("\n\r", "\n", $text);
-		$text = str_replace("\r\n", "\n", $text);
-		$text = str_replace("\n", " ", $text);
-		$text = str_replace("\t", " ", $text);
-		$text = str_replace("  ", " ", $text);
-		$text = str_replace("  ", " ", $text);
-		$text = str_replace("  ", " ", $text);
-		$text = str_replace(" ", "%20", $text);
-
-		return $text;
-	}
-
-	public function special_chars($text)
-	{
-		return $text;
-		// $l = strlen($text); $ntext = ''; for($i=1025; $i<=1169;$i++){ $text = str_replace(chr($i),'&#'.$i.';',$text); } return htmlspecialchars($text,null,'KOI8-R',false);
-	}
-
-	public function isUTF8($string)
+	private function isUTF8($string)
 	{
 		if(function_exists("mb_check_encoding") && is_callable("mb_check_encoding"))
 		{
 			return mb_check_encoding($string, 'UTF8');
 		}
+
 		return preg_match('%^(?:
-		  [\x09\x0A\x0D\x20-\x7E]			# ASCII
+		[\x09\x0A\x0D\x20-\x7E]				# ASCII
 		| [\xC2-\xDF][\x80-\xBF]			 # non-overlong 2-byte
 		|  \xE0[\xA0-\xBF][\x80-\xBF]		# excluding overlongs
 		| [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
@@ -164,7 +126,7 @@ class Traducir extends Service
 	 * @param string $text
 	 * @return string
 	 */
-	public function reparaTildes($text)
+	private function reparaTildes($text)
 	{
 		$text = htmlentities($text, ENT_COMPAT | ENT_HTML401, 'UTF-8', false);
 		$text = str_replace('&', '', $text);
@@ -174,27 +136,27 @@ class Traducir extends Service
 		return $text;
 	}
 
-	public function utf8Encode($data, $encoding = 'utf-8')
+	private function utf8Encode($data, $encoding = 'utf-8')
 	{
 		if(!$this->checkEncoding($data, "utf-8"))
 			return utf8_encode($data);
 		return $data;
 	}
 
-	public function checkEncoding($string, $string_encoding)
+	private function checkEncoding($string, $string_encoding)
 	{
 		$fs = $string_encoding == 'UTF-8' ? 'UTF-32' : $string_encoding;
 		$ts = $string_encoding == 'UTF-32' ? 'UTF-8' : $string_encoding;
 		return $string === mb_convert_encoding(mb_convert_encoding($string, $fs, $ts), $ts, $fs);
 	}
 
-	  /**
+	/**
 	 * Clean a text
 	 *
 	 * @param string $text
 	 * @return string
 	 */
-	public function cleanText($text, $ps = false, $align = "justify")
+	private function cleanText($text, $ps = false, $align = "justify")
 	{
 		$text = "$text";
 
@@ -215,7 +177,7 @@ class Traducir extends Service
 	 * @param string $utf16
 	 * @return string
 	 */
-	public function utf162utf8($utf16)
+	private function utf162utf8($utf16)
 	{
 		if(function_exists('mb_convert_encoding')) return mb_convert_encoding($utf16, 'UTF-8', 'UTF-16');
 		$bytes = (ord($utf16{0}) << 8) | ord($utf16{1});
@@ -232,7 +194,7 @@ class Traducir extends Service
 	 * Add line breaks around
 	 * block-level tags to prevent word joining after tag removal.
 	 */
-	public function strip_html_tags($text, $allowable_tags = null)
+	private function strip_html_tags($text, $allowable_tags = null)
 	{
 		// echo "STRIP HTML TAGS\n";
 		$text = preg_replace(array(
@@ -283,7 +245,7 @@ class Traducir extends Service
 		return $text;
 	}
 
-	public function replaceRecursive($from, $to, $s)
+	private function replaceRecursive($from, $to, $s)
 	{
 		if($from == $to) return $s;
 
